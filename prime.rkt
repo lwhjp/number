@@ -3,21 +3,37 @@
 (module+ test
   (require rackunit)
   (define primes (in-primes))
+  (check-equal? (factors 1234567890 #:primes primes)
+                '(2 3 3 5 3607 3803))
   (for ([i (in-range 1000)]
         [p primes])
     (check-pred prime? p))
-  (define millionth-prime
-    (time
-     (sequence-ref primes (sub1 1000000))))
-  (check-eqv? millionth-prime 15485863))
+  (define thousandth-prime
+    (sequence-ref primes (sub1 1000)))
+  (check-eqv? thousandth-prime 7919))
 
 (require racket/contract/base
          racket/promise
-         racket/sequence)
+         racket/sequence
+         racket/stream)
 
 (provide (contract-out
+          [factors
+           (->* (exact-positive-integer?)
+                (#:primes sequence?)
+                (listof exact-positive-integer?))]
           [prime? (-> exact-positive-integer? boolean?)]
           [in-primes (-> sequence?)]))
+
+(define (factors n #:primes [primes (in-naturals 2)])
+  (let loop ([n n]
+             [ps (sequence->stream primes)])
+    (define p (stream-first ps))
+    (define-values (q r) (quotient/remainder n p))
+    (cond
+      [(= 1 n) '()]
+      [(zero? r) (cons p (loop q ps))]
+      [else (loop n (stream-rest ps))])))
 
 (define (prime? n)
   (cond
