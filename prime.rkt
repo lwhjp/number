@@ -3,7 +3,7 @@
 (module+ test
   (require rackunit)
   (define primes (in-primes))
-  (check-equal? (factors 1234567890 #:primes primes)
+  (check-equal? (factors 1234567890 primes)
                 '(2 3 3 5 3607 3803))
   (for ([i (in-range 1000)]
         [p primes])
@@ -20,12 +20,12 @@
 (provide (contract-out
           [factors
            (->* (exact-positive-integer?)
-                (#:primes sequence?)
+                (sequence?)
                 (listof exact-positive-integer?))]
           [prime? (-> exact-positive-integer? boolean?)]
           [in-primes (-> sequence?)]))
 
-(define (factors n #:primes [primes (in-naturals 2)])
+(define (factors n [primes (in-naturals 2)])
   (let loop ([n n]
              [ps (sequence->stream primes)])
     (define p (stream-first ps))
@@ -43,7 +43,9 @@
     [(< n 9) #t]
     [(zero? (remainder n 3)) #f]
     [else
-     (for/and ([i (in-range 5 (add1 (floor (sqrt n))) 6)])
+     (for/and ([i (in-range 5
+                            (add1 (integer-sqrt n))
+                            6)])
        (not (or (zero? (remainder n i))
                 (zero? (remainder n (+ i 2))))))]))
 
@@ -69,9 +71,9 @@
   ;; Filter multiples of known primes
   (let/ec done
     (define last (quotient end 2))
+    (unless first-chunk
+      (done))
     (let filter-chunks ([ch first-chunk])
-      (unless ch
-        (done))
       (for ([p (in-vector (prime-sieve-chunk ch))])
         (when (> p last)
           (done))
