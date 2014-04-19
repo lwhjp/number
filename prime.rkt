@@ -34,7 +34,7 @@
 (struct prime-sieve (chunk next))
 
 (define (make-prime-sieve [initial-chunk-size 1000]
-                          [max-chunk-size 1000000])
+                          [max-chunk-size 10000000])
   (define first-chunk #f)
   (define (make-chunk begin chunk-size)
     (define end (+ begin (* chunk-size 2)))
@@ -51,9 +51,14 @@
   (define chunk
     (make-vector (quotient (add1 (- end begin)) 2) #t))
   ;; Filter multiples of known primes
-  (let filter-chunks ([ch first-chunk])
-    (when ch
+  (let/ec done
+    (define last (quotient end 2))
+    (let filter-chunks ([ch first-chunk])
+      (unless ch
+        (done))
       (for ([p (in-vector (prime-sieve-chunk ch))])
+        (when (> p last)
+          (done))
         (define r (remainder begin p))
         (define first-odd-multiple
           (cond
@@ -65,9 +70,8 @@
                            p)])
           (vector-set! chunk i #f)))
       (let ([next (prime-sieve-next ch)])
-        (filter-chunks
-         (and (not (promise-running? next))
-              (force next))))))
+        (unless (promise-running? next)
+          (filter-chunks (force next))))))
   ;; Record and filter multiples of remaining numbers
   (for/vector ([i (in-range (vector-length chunk))]
                [n (in-range begin end 2)]
